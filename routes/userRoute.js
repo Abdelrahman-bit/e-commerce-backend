@@ -1,12 +1,13 @@
 import express from 'express';
 import { getAllUsers, addNewUser, updateUser, deleteUser } from "../controls/userControls.js";
+import asyncHandler from '../utils/catchAsync.js';
 
 const router = express.Router();
 
-router.get('/', getAllUsers);
-router.post('/', addNewUser);
-router.put('/:id', updateUser);
-router.delete('/:id', deleteUser);
+router.get('/', asyncHandler(getAllUsers));
+router.post('/', asyncHandler(addNewUser));
+router.put("/:id", asyncHandler(updateUser));
+router.delete('/:id', asyncHandler(deleteUser));
 
 
 export default router;

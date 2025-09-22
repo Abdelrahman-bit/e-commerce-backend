@@ -1,9 +1,13 @@
-function getAllUsers(req, res){
-    res.send('All users')
+import User from "../models/userSchema.js";
+
+async function getAllUsers(req, res){
+    
 }
 
 function addNewUser(req, res){
-    res.send('Add new user');
+    // const user = req.body;
+    User.create({name: 'hamada', email: 'hamada@example.com', password: 'Hamada123'});
+    res.status(201).json({message: 'user created successfully'})
 }
 
 function updateUser(req, res){

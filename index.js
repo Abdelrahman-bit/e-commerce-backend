@@ -7,7 +7,8 @@ const port = 5000;
 const app = express();
 app.use(express.json());
 
-mongoose.connect("mongodb://localhost:27017/e-commerce")
+mongoose
+	.connect("mongodb+srv://abdolela670_db_user:SEM0A4JzoIallZfb@cluster0.gu12vhh.mongodb.net/e-commerce")
 	.then(() => console.log("MongoDB connected"))
 	.catch((err) => console.error("MongoDB connection error:", err));
 
