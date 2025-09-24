@@ -9,6 +9,7 @@ function authChecker(req, res, next) {
 		req.path.includes("login") ||
 		req.path.includes("reset-password") ||
 		req.path.includes("render-form") ||
+		(req.path.includes("products") && req.method === 'GET') ||
 		(req.path.includes("users") && req.method === "POST")
 	) {
 		return next();
@@ -21,6 +22,7 @@ function authChecker(req, res, next) {
 	try {
 		const verified = jwt.verify(token, process.env.JWT_SECRET);
 		req.userId = verified.userId;
+		req.role = verified.role;
 	} catch (error) {
 		return res.status(403).json({ message: "Invalid Token" });
 	}

@@ -16,14 +16,14 @@ async function getAllUsers(req, res){
 
 async function addNewUser(req, res){
     console.log(req.body)
-    const {name, email, password} = req.body;
+    const {name, email, password, role} = req.body;
     if(!name || !email || !password) throw createError('name, email and password are required', 400);
 
     const existingUser = await User.findOne({email});
     if(existingUser) throw createError('this email is already exist', 409);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    const newUser = await User.create({name, email, password: hashedPassword});
+    const newUser = await User.create({name, email, password: hashedPassword, role: role? role: 'customer'});
     if(!newUser) throw createError();
     res.status(201).json({message: 'user created successfully'})
 }
@@ -38,7 +38,7 @@ async function loginUser(req, res){
 	const isMatch = await bcrypt.compare(password, user.password);
 	if (!isMatch) throw createError("Invalid credentials", 401);
 
-	const token = jwt.sign({ userId: user._id, email }, process.env.JWT_SECRET, { expiresIn: "1d" });
+	const token = jwt.sign({ userId: user._id, email, role: user.role }, process.env.JWT_SECRET, { expiresIn: "1d" });
 	res.status(200).json({ message: "Login successful", token });
 }
 
@@ -111,6 +111,12 @@ async function resetPassword(req, res){
 	}
 }
 
+/**
+ * 
+ * @param {*} req 
+ * @param {*} res 
+ * @TODO Delete all the products that related to the deleted user if he is a seller
+ */
 async function deleteUser(req, res){
     const userId = req.userId;
     if(!userId) throw createError('id is required!', 400);

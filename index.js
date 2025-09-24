@@ -5,6 +5,8 @@ import bodyParser from 'body-parser'
 import userRouter from './routes/userRoute.js'
 import productRouter from './routes/productRoute.js'
 import authChecker from './middleware/authChecker.js'
+import createError from './utils/createError.js'
+import errorHandler from './middleware/errorHandler.js'
 
 const port = process.env.PORT;
 const app = express();
@@ -21,9 +23,13 @@ mongoose
 
 
 app.use('/users', userRouter);
-app.use('/products', productRouter)
+app.use('/products', productRouter);
+app.use("/uploads", express.static("uploads"));
+app.use((req, res, next) => {
+	next(createError("Route not found", 404));
+});
 
-
+app.use(errorHandler)
 app.listen(port, ()=>{
     console.log(`server is running on port ${port}`);
 })
