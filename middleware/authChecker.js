@@ -5,7 +5,12 @@ function authChecker(req, res, next) {
 	const token = authHeader && authHeader.split(" ")[1];
 
 	// Allow access to login and user creation routes without token
-	if (req.path.includes("login") || (req.path.includes("users") && req.method === "POST")) {
+	if (
+		req.path.includes("login") ||
+		req.path.includes("reset-password") ||
+		req.path.includes("render-form") ||
+		(req.path.includes("users") && req.method === "POST")
+	) {
 		return next();
 	}
 

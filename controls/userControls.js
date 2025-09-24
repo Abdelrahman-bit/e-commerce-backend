@@ -1,7 +1,12 @@
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs';
+import axios from 'axios';
 import User from "../models/userSchema.js";
 import createError from "../utils/createError.js";
+import sendResetEmail from '../utils/nodemailer.js';
+
+const port = process.env.PORT;
+const salt = Number(process.env.SALT); 
 
 async function getAllUsers(req, res){
     const allUsers = await User.find({});
@@ -10,12 +15,13 @@ async function getAllUsers(req, res){
 }
 
 async function addNewUser(req, res){
+    console.log(req.body)
     const {name, email, password} = req.body;
     if(!name || !email || !password) throw createError('name, email and password are required', 400);
+
     const existingUser = await User.findOne({email});
     if(existingUser) throw createError('this email is already exist', 409);
-    const salt = 10;
-    const hashedPassword = bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
     const newUser = await User.create({name, email, password: hashedPassword});
     if(!newUser) throw createError();
@@ -37,15 +43,16 @@ async function loginUser(req, res){
 }
 
 async function updateUser(req, res){
-    const userId = req.params;
+    const userId = req.userId;
     const {name, email, password} = req.body
     if(!userId) throw createError('user id is required!', 400);
     if(!name, !email, !password) throw createError('no data is provided, at lest provide one feild', 400);
     
+    const hashedPassword = await bcrypt.hash(password, salt)
     let userData = {}
     if(name) userData.name = name;
     if(email) userData.email = email;
-    if(password) userData.password = password;
+    if(password) userData.password = hashedPassword;
     if(Object.keys(userData).length === 0) throw createError('No fields to update!', 400);
 
     const updatedUser = await User.findByIdAndUpdate(userId, {$set: userData})
@@ -54,41 +61,65 @@ async function updateUser(req, res){
     res.status(201).json('user updated sucessfully');
 }
 
-// useing nodemailer and jwt to generate an endpoint that expire after a sertain time thanks to jwt:
+async function generateLink(req, res) {
+	const {email: userEmail} = req.body
+    if(!userEmail) throw createError('Must provide the user email to reset the password!', 400);
 
-    // Generate an expiring token
-// app.get("/generate-link", (req, res) => {
-//   const token = jwt.sign({ userId: 123 }, SECRET, { expiresIn: "1m" }); // 1 minute
-//   res.json({ link: `http://localhost:3000/secure-endpoint?token=${token}` });
-// });
+    const userExist = await User.findOne({email: userEmail});
+    if(!userExist) throw createError('User email is not exist, Please create a new account', 404);
 
-// // Protect endpoint
-// app.get("/secure-endpoint", (req, res) => {
-//   const token = req.query.token;
-//   try {
-//     jwt.verify(token, SECRET);
-//     res.json({ message: "This link is valid 🎉" });
-//   } catch (err) {
-//     res.status(403).json({ message: "Link expired or invalid ❌" });
-//   }
-// });
+    const userId = userExist._id;
+	const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "15m" }); 
+	const link = `http://localhost:${port}/users/render-form?token=${token}`;
 
- /**
-  * @see TODO
-  * */
-function forgetPassword(req, res){
-    res.send('remempering...')
+    sendResetEmail(userEmail, link) // send email with the reset link to the user's email
+	res.send(`Reset link: <a href="${link}">${link}</a>`);
+}
+
+function renderForm(req, res){
+    const token = req.query.token;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if(!decoded) throw createError('Link expired or invalid', 403);
+
+    res.render("reset", { token, apiUrl: `http://localhost:${port}/users/reset-password` }); // pass token to template
+}
+
+async function resetPassword(req, res){
+    const { token, password } = req.body;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+	if (!decoded) throw createError("Link expired or invalid", 403);
+	try {
+		const apiCall = await axios.patch(
+			`http://localhost:${port}/users`,
+			{ password },
+			{
+				headers: {
+					Authorization: `Bearer ${token}`,
+					"Content-Type": "application/json",
+				},
+			}
+		);
+
+		console.log("updated successfully:", apiCall.data);
+		return res.status(200).json({ message: "Password updated successfully" });
+	} catch (err) {
+		console.error("Password reset failed:", err.message);
+		// Option 2: Send direct response
+		return res.status(err.response?.status || 500).json({
+			message: err.response?.data?.message || "Password reset failed",
+		});
+	}
 }
 
 async function deleteUser(req, res){
-    const { id } = req.params;
-    if(!id) throw createError('id is required!', 400);
+    const userId = req.userId;
+    if(!userId) throw createError('id is required!', 400);
 
-    const deletedUser = await User.findByIdAndDelete(id);
-    if(!deletedUser) throw createError(`User with id: ${id} is not found`, 404);
+    const deletedUser = await User.findByIdAndDelete(userId);
+    if(!deletedUser) throw createError(`User with id: ${userId} is not found`, 404);
 
-    res.status(202).json(`Deleted successefully: ${deletedUser}`)
+    res.status(202).json({ message: `Deleted successefully`, userDeleted: `${deletedUser.email}` });
 }
 
 
-export { getAllUsers, addNewUser, loginUser, updateUser, deleteUser, forgetPassword }
+export { getAllUsers, addNewUser, loginUser, updateUser, deleteUser, generateLink, resetPassword, renderForm };
