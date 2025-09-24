@@ -5,6 +5,7 @@ import bodyParser from 'body-parser'
 import userRouter from './routes/userRoute.js'
 import productRouter from './routes/productRoute.js'
 import orderRouter from './routes/orderRoute.js'
+import cartRouter from './routes/cartRoute.js'
 import authChecker from './middleware/authChecker.js'
 import createError from './utils/createError.js'
 import errorHandler from './middleware/errorHandler.js'
@@ -26,6 +27,7 @@ mongoose
 app.use('/users', userRouter);
 app.use('/products', productRouter);
 app.use('/orders', orderRouter)
+app.use('/cart', cartRouter)
 app.use("/uploads", express.static("uploads"));
 app.use((req, res, next) => {
 	next(createError("Route not found", 404));
