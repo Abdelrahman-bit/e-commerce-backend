@@ -1,11 +1,15 @@
 import express from 'express'
 import mongoose from 'mongoose'
+import dotenv from 'dotenv'
 import userRouter from './routes/userRoute.js'
 import productRouter from './routes/productRoute.js'
+import authChecker from './middleware/authChecker.js'
 
 const port = 5000;
 const app = express();
 app.use(express.json());
+app.use(authChecker)
+dotenv.config()
 
 mongoose
 	.connect("mongodb+srv://abdolela670_db_user:SEM0A4JzoIallZfb@cluster0.gu12vhh.mongodb.net/e-commerce")

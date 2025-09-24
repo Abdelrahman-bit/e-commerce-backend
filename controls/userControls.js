@@ -1,3 +1,5 @@
+import jwt from 'jsonwebtoken'
+import bcrypt from 'bcryptjs';
 import User from "../models/userSchema.js";
 import createError from "../utils/createError.js";
 
@@ -7,22 +9,47 @@ async function getAllUsers(req, res){
     res.status(200).json(allUsers)
 }
 
-function addNewUser(req, res){
+async function addNewUser(req, res){
     const {name, email, password} = req.body;
-    if(!name || !email || !password) throw createError('name, email and password are required', 400)
-    User.create({name: 'hamada', email: 'hamada@example.com', password: 'Hamada123'});
+    if(!name || !email || !password) throw createError('name, email and password are required', 400);
+    const existingUser = await User.findOne({email});
+    if(existingUser) throw createError('this email is already exist', 409);
+    const salt = 10;
+    const hashedPassword = bcrypt.hash(password, salt);
+
+    const newUser = await User.create({name, email, password: hashedPassword});
+    if(!newUser) throw createError();
     res.status(201).json({message: 'user created successfully'})
 }
 
-// TODO
-function updateUser(req, res){
-    const {name, email, password} = req.body
-    if(!name, !email, !password) throw createError('no data is provided, at lest provide one feild', 400)
+async function loginUser(req, res){
+    const { email, password } = req.body;
+	if (!email || !password) throw createError("email and password are required", 400);
 
+	const user = await User.findOne({ email });
+	if (!user) throw createError("User not found", 404);
+
+	const isMatch = await bcrypt.compare(password, user.password);
+	if (!isMatch) throw createError("Invalid credentials", 401);
+
+	const token = jwt.sign({ userId: user._id, email }, process.env.JWT_SECRET, { expiresIn: "1d" });
+	res.status(200).json({ message: "Login successful", token });
+}
+
+async function updateUser(req, res){
+    const userId = req.params;
+    const {name, email, password} = req.body
+    if(!userId) throw createError('user id is required!', 400);
+    if(!name, !email, !password) throw createError('no data is provided, at lest provide one feild', 400);
+    
     let userData = {}
     if(name) userData.name = name;
     if(email) userData.email = email;
     if(password) userData.password = password;
+    if(Object.keys(userData).length === 0) throw createError('No fields to update!', 400);
+
+    const updatedUser = await User.findByIdAndUpdate(userId, {$set: userData})
+    if(!updatedUser) throw createError(`user with id ${userId} is not found`, 404);
 
     res.status(201).json('user updated sucessfully');
 }
@@ -46,6 +73,9 @@ function updateUser(req, res){
 //   }
 // });
 
+ /**
+  * @see TODO
+  * */
 function forgetPassword(req, res){
     res.send('remempering...')
 }
@@ -61,4 +91,4 @@ async function deleteUser(req, res){
 }
 
 
-export { getAllUsers, addNewUser, updateUser, deleteUser, forgetPassword }
+export { getAllUsers, addNewUser, loginUser, updateUser, deleteUser, forgetPassword }
